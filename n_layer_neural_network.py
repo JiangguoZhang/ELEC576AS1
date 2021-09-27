@@ -41,7 +41,7 @@ def plot_decision_boundary(pred_func, X, y):
 
 ########################################################################################################################
 ########################################################################################################################
-# YOUR ASSSIGMENT STARTS HERE
+# YOUR ASSIGNMENT STARTS HERE
 # FOLLOW THE INSTRUCTION BELOW TO BUILD AND TRAIN A 3-LAYER NEURAL NETWORK
 ########################################################################################################################
 ########################################################################################################################
@@ -209,13 +209,194 @@ class NeuralNetwork(object):
         plot_decision_boundary(lambda x: self.predict(x), X, y)
 
 
+class Layer(object):
+    """
+        This class composes the basic elements of the DeepNeuralNetwork
+    """
+
+    def __init__(self, nn_input_dim, nn_output_dim):
+        """
+        :param nn_input_dim: input dimension
+        :param nn_output_dim: output dimension
+        """
+        self.nn_input_dim = nn_input_dim
+        self.nn_output_dim = nn_output_dim
+
+        # initialize the weights and biases in the network
+        self.W = np.random.randn(self.nn_input_dim, self.nn_output_dim) / np.sqrt(self.nn_input_dim)
+        self.b = np.zeros((1, self.nn_output_dim))
+
+    def feedforward(self, X, actFun):
+        """
+        feedforward builds a 1-layer neural network and computes the two probabilities,
+        one for class 0 and one for class 1
+        :param X: input data
+        :param actFun: activation function
+        :return: the output of the layer
+        """
+        self.z = np.dot(X, self.W) + self.b
+        return actFun(self.z)
+
+    def backprop(self, X, pL_a, diff_actFun):
+        """
+        backprop run backpropagation to compute the gradients used to update the parameters in the backward step
+        :param X: input data
+        :param pL_a: given loss
+        :param diff_actFun: the derivative of the activation function
+        :return: dL/dW1, dL/b1, dL/dW2, dL/db2
+        """
+        num_examples = len(X)
+        pL_z = pL_a * diff_actFun(self.z)
+        dW = np.dot(X.T, pL_z) / num_examples
+        db = np.sum(pL_z, axis=0, keepdims=True) / num_examples
+        pL_X = np.dot(pL_z, self.W.T)
+        return dW, db, pL_X
+
+
+
+class DeepNeuralNetwork(NeuralNetwork):
+    def __init__(self, nn_input_dim, nn_num_layers, nn_hidden_dim, nn_output_dim, actFun_type='tanh', reg_lambda=0.01,
+                 seed=0):
+        """
+        :param nn_input_dim: input dimension
+        :param nn_num_layers: the number of layers
+        :param nn_hidden_dim: the number of hidden units
+        If it is an integer, then the number of hidden units are the same in each hidden layer
+        If it is a list, then each value in the list indicates the number of units in each hidden layer in order
+        :param nn_output_dim: output dimension
+        :param actFun_type: type of activation function. 3 options: 'tanh', 'sigmoid', 'relu'
+        :param reg_lambda: regularization coefficient
+        :param seed: random seed
+        """
+        self.nn_input_dim = nn_input_dim
+        if isinstance(nn_hidden_dim, list):
+            self.nn_hidden_dims = nn_hidden_dim
+            self.nn_num_layers = len(self.nn_hidden_dims) + 2
+        else:
+            self.nn_num_layers = nn_num_layers
+            self.nn_hidden_dims = [nn_hidden_dim] * (nn_num_layers - 2)
+        self.nn_output_dim = nn_output_dim
+        self.actFun_type = actFun_type
+        self.reg_lambda = reg_lambda
+        # initialize the weights and biases in the network
+        np.random.seed(seed)
+        if len(self.nn_hidden_dims) == 0:
+            layers = [Layer(nn_input_dim, nn_output_dim)]
+        else:
+            layers = [Layer(nn_input_dim, self.nn_hidden_dims[0])]
+            layers.extend([Layer(self.nn_hidden_dims[i], self.nn_hidden_dims[i+1]) for i in range(self.nn_num_layers - 3)])
+            layers.append(Layer(self.nn_hidden_dims[-1], nn_output_dim))
+        self.layers = layers
+
+
+    def feedforward(self, X, actFun):
+        """
+            feedforward builds a 3-layer neural network and computes the two probabilities,
+            one for class 0 and one for class 1
+            :param X: input data
+            :param actFun: activation function
+            :return:
+        """
+        a = X
+        self.a = []
+        for i in range(len(self.layers) - 1):
+            a = self.layers[i].feedforward(a, actFun)
+            self.a.append(a)
+        a = self.layers[-1].feedforward(a, lambda x: self.actFun(x, type="linear"))
+        z = np.exp(a)
+        self.probs = z / np.sum(z, axis=1, keepdims=True)
+        return None
+
+
+    def backprop(self, X, y):
+        """
+            backprop run backpropagation to compute the gradients used to update the parameters in the backward step
+            :param X: input data
+            :param y: given labels
+            :return: dWs, dbs
+        """
+        num_examples = len(X)
+        pL_z = self.probs
+        pL_z[range(num_examples), y] -= 1  # pL_z is a combination of partial log-likelihood and softmax
+        dWs, dbs = [], []
+        a = [X]
+        a.extend(self.a)
+        for i in range(self.nn_num_layers - 1):
+            if i == 0:  # The last layer uses the softmax activation function
+                dW, db, pL_z = self.layers[-1-i].backprop(a[-1-i], pL_z,
+                                                          lambda x: self.diff_actFun(x, type="linear"))
+            else:
+                dW, db, pL_z = self.layers[-1-i].backprop(a[-1-i], pL_z,
+                                                          lambda x: self.diff_actFun(x, type=self.actFun_type))
+            dWs.append(dW)
+            dbs.append(db)
+        # Revers the lists of dW and db
+        dWs.reverse()
+        dbs.reverse()
+        return dWs, dbs
+
+
+    def fit_model(self, X, y, epsilon=0.01, num_passes=20000, print_loss=True):
+        """
+        fit_model uses backpropagation to train the network
+        :param X: input data
+        :param y: given labels
+        :param num_passes: the number of times that the algorithm runs through the whole dataset
+        :param print_loss: print the loss or not
+        :return:
+
+        Args:
+            epsilon:
+        """
+        # Gradient descent.
+        for i in range(0, num_passes):
+            # Forward propagation
+            self.feedforward(X, lambda x: self.actFun(x, type=self.actFun_type))
+            # Backpropagation
+            dWs, dbs = self.backprop(X, y)
+
+            for j, layer in enumerate(self.layers):
+                # Add derivatives of regularization terms ('b's don't have regularization terms)
+                dW = dWs[j] + self.reg_lambda * layer.W
+                db = dbs[j]
+
+                # Gradient descent parameter update
+                layer.W += -epsilon * dW
+                layer.b += -epsilon * db
+
+            # Optionally print the loss.
+            # This is expensive because it uses the whole dataset, so we sigmoiddon't want to do it too often.
+            if print_loss and i % 1000 == 0:
+                print("Loss after iteration %i: %f" % (i, self.calculate_loss(X, y)))
+        print("Loss after iteration %i: %f" % (num_passes, self.calculate_loss(X, y)))
+
+
+    def calculate_loss(self, X, y):
+        """
+        calculate_loss compute the loss for prediction
+        :param X: input data
+        :param y: given labels
+        :return: the loss for prediction
+        """
+        num_examples = len(X)
+        self.feedforward(X, lambda x: self.actFun(x, type=self.actFun_type))
+        # Calculating the loss
+
+        data_loss = - np.sum(np.log10(self.probs[range(num_examples), y]))  # / num_examples
+
+        # Add regularization term to loss (optional)
+        for layer in self.layers:
+            data_loss += self.reg_lambda / 2 * (np.sum(np.square(layer.W)))
+        return (1. / num_examples) * data_loss
+
+
 def main():
     # generate and visualize Make-Moons dataset
     X, y = generate_data()
     # plt.scatter(X[:, 0], X[:, 1], s=40, c=y, cmap=plt.cm.Spectral)
     # plt.show()
 
-    model = NeuralNetwork(nn_input_dim=2, nn_hidden_dim=720, nn_output_dim=2, actFun_type='tanh')
+    model = DeepNeuralNetwork(nn_input_dim=2, nn_num_layers=9, nn_hidden_dim=5, nn_output_dim=2, actFun_type='relu')
     model.fit_model(X, y)
     model.visualize_decision_boundary(X, y)
 
