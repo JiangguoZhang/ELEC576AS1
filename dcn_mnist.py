@@ -1,16 +1,18 @@
 import os
 import time
 
-# Load MNIST dataset
-from tensorflow.examples.tutorials.mnist import input_data
-mnist = input_data.read_data_sets('MNIST_data', one_hot=True)
 
 # Import Tensorflow and start a session
 import tensorflow as tf
+# Load MNIST dataset
+mnist = tf.keras.datasets.mnist.load_data(
+    path='mnist.npz'
+)
+
 sess = tf.InteractiveSession()
 
 def weight_variable(shape):
-    '''
+    """
     Initialize weights
     :param shape: shape of weights, e.g. [w, h ,Cin, Cout] where
     w: width of the filters
@@ -18,26 +20,22 @@ def weight_variable(shape):
     Cin: the number of the channels of the filters
     Cout: the number of filters
     :return: a tensor variable for weights with initial values
-    '''
-
-    # IMPLEMENT YOUR WEIGHT_VARIABLE HERE
-
-    return W
+    """
+    initial = tf.random.truncated_normal(shape, stddev=0.1)
+    return tf.Variable(initial)
 
 def bias_variable(shape):
-    '''
+    """
     Initialize biases
     :param shape: shape of biases, e.g. [Cout] where
     Cout: the number of filters
     :return: a tensor variable for biases with initial values
-    '''
-
-    # IMPLEMENT YOUR BIAS_VARIABLE HERE
-
-    return b
+    """
+    initial = tf.constant(0.1, shape=shape)
+    return tf.Variable(initial)
 
 def conv2d(x, W):
-    '''
+    """
     Perform 2-D convolution
     :param x: input tensor of size [N, W, H, Cin] where
     N: the number of images
@@ -50,22 +48,16 @@ def conv2d(x, W):
     Cin: the number of the channels of the filters = the number of channels of images
     Cout: the number of filters
     :return: a tensor of features extracted by the filters, a.k.a. the results after convolution
-    '''
-
-    # IMPLEMENT YOUR CONV2D HERE
-
-    return h_conv
+    """
+    return tf.nn.conv2d(x, W, strides=[1, 1, 1, 1], padding='SAME')
 
 def max_pool_2x2(x):
-    '''
+    """
     Perform non-overlapping 2-D maxpooling on 2x2 regions in the input data
     :param x: input data
     :return: the results of maxpooling (max-marginalized + downsampling)
-    '''
-
-    # IMPLEMENT YOUR MAX_POOL_2X2 HERE
-
-    return h_max
+    """
+    return tf.nn.max_pool(x, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
 
 def main():
     # Specify training parameters
