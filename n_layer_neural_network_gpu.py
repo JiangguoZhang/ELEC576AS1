@@ -1,19 +1,16 @@
-import numpy as np
-import os
 import argparse
+import csv
+import os
 import pickle
 import shutil
-import csv
+from collections import OrderedDict
+
+import numpy as np
 import torch.nn as nn
 import torch.optim as optim
-from tensorboardX import SummaryWriter
-from torch.autograd import Variable
 import torch.utils.data
-from sklearn import datasets, linear_model
-import matplotlib.pyplot as plt
-from sklearn.manifold import TSNE
+from tensorboardX import SummaryWriter
 from torch.utils.data import DataLoader
-from collections import OrderedDict
 
 
 class DatasetLoader(torch.utils.data.Dataset):
