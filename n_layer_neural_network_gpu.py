@@ -1,5 +1,3 @@
-__author__ = 'tan_nguyen'
-
 import numpy as np
 import os
 import argparse
