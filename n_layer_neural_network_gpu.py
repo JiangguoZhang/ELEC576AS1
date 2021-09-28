@@ -31,7 +31,7 @@ class DatasetLoader(torch.utils.data.Dataset):
 
         cell_data = [[float(x) for x in row] for row in cell_data]
         cell_data = np.array(cell_data, dtype=np.float32)
-        cell_data = (cell_data - np.mean(cell_data, axis=0)) / np.std(cell_data, axis=0)
+        #cell_data = (cell_data - np.mean(cell_data, axis=0)) / np.std(cell_data, axis=0)
         self.cell_label = torch.LongTensor(cell_data[:, -1])
         self.cell_data = torch.FloatTensor(cell_data[:, 1:-1])
         self.length = len(self.cell_data)
@@ -47,7 +47,7 @@ class DatasetLoader(torch.utils.data.Dataset):
 
 
 def construct_linear_block(nn_input_dim, nn_output_dim, actFun_type):
-    sequential = [("linear_block", nn.Linear(nn_input_dim, nn_output_dim))]
+    sequential = [("batch_norm", nn.BatchNorm1d(nn_input_dim)), ("linear_block", nn.Linear(nn_input_dim, nn_output_dim))]
     if actFun_type == "tanh":
         sequential.append(("tanh", nn.Tanh()))
     elif actFun_type == "sigmoid":

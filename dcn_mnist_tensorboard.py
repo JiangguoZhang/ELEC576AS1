@@ -13,6 +13,23 @@ mnist = input_data.read_data_sets('MNIST_data', one_hot=True)
 
 sess = tf.InteractiveSession()
 
+
+def monitor_statistics(var):
+    """
+    Monitor the statistics (min, max, mean, standard deviation, histogram)
+    :param var: Variable
+    """
+    with tf.name_scope('summaries'):
+        mean = tf.reduce_mean(var)
+        tf.summary.scalar('mean', mean)
+    with tf.name_scope('stddev'):
+        stddev = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
+    tf.summary.scalar('stddev', stddev)
+    tf.summary.scalar('max', tf.reduce_max(var))
+    tf.summary.scalar('min', tf.reduce_min(var))
+    tf.summary.histogram('histogram', var)
+
+
 def weight_variable(shape):
     """
     Initialize weights
@@ -63,7 +80,7 @@ def max_pool_2x2(x):
 
 def main():
     # Specify training parameters
-    result_dir = './results/' # directory where the results from the training are saved
+    result_dir = './results-sigmoid/' # directory where the results from the training are saved
     max_step = 5500 # the maximum iterations. After max_step iterations, the training will stop no matter what
 
     start_time = time.time() # start timing
@@ -75,34 +92,82 @@ def main():
     y_ = tf.placeholder(tf.float32, [None, 10], name='y_')
 
     # reshape the input image
-    x_image = tf.reshape(x, [-1, 28, 28, 1])
+    with tf.name_scope('input_image'):
+        x_image = tf.reshape(x, [-1, 28, 28, 1])
+        monitor_statistics(x_image)
 
     # first convolutional layer
-    W_conv1 = weight_variable([5, 5, 1, 32])
-    b_conv1 = bias_variable([32])
-    h_conv1 = tf.nn.relu(conv2d(x_image, W_conv1) + b_conv1)
-    h_pool1 = max_pool_2x2(h_conv1)
+    with tf.name_scope('W1'):
+        W_conv1 = weight_variable([5, 5, 1, 32])
+        monitor_statistics(W_conv1)
+
+    with tf.name_scope('b1'):
+        b_conv1 = bias_variable([32])
+        monitor_statistics(b_conv1)
+
+    with tf.name_scope("conv1"):
+        #h_conv1 = tf.nn.relu(conv2d(x_image, W_conv1) + b_conv1)
+        h_conv1 = tf.nn.sigmoid(conv2d(x_image, W_conv1) + b_conv1)
+        monitor_statistics(h_conv1)
+
+    with tf.name_scope("pool1"):
+        h_pool1 = max_pool_2x2(h_conv1)
+        monitor_statistics(h_pool1)
 
     # second convolutional layer
-    W_conv2 = weight_variable([5, 5, 32, 64])
-    b_conv2 = bias_variable([64])
-    h_conv2 = tf.nn.relu(conv2d(h_pool1, W_conv2) + b_conv2)
-    h_pool2 = max_pool_2x2(h_conv2)
+    with tf.name_scope('W2'):
+        W_conv2 = weight_variable([5, 5, 32, 64])
+        monitor_statistics(W_conv2)
+
+    with tf.name_scope('b2'):
+        b_conv2 = bias_variable([64])
+        monitor_statistics(b_conv2)
+
+    with tf.name_scope('conv2'):
+        #h_conv2 = tf.nn.relu(conv2d(h_pool1, W_conv2) + b_conv2)
+        h_conv2 = tf.nn.sigmoid(conv2d(h_pool1, W_conv2) + b_conv2)
+        monitor_statistics(h_conv2)
+
+    with tf.name_scope('pool2'):
+        h_pool2 = max_pool_2x2(h_conv2)
+        monitor_statistics(h_pool2)
 
     # densely connected layer
-    W_fc1 = weight_variable([7 * 7 * 64, 1024])
-    b_fc1 = bias_variable([1024])
-    h_pool2_flat = tf.reshape(h_pool2, [-1, 7*7*64])
-    h_fc1 = tf.nn.relu(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
+    with tf.name_scope('W_fc1'):
+        W_fc1 = weight_variable([7 * 7 * 64, 1024])
+        monitor_statistics(W_fc1)
+
+    with tf.name_scope('b_fc1'):
+        b_fc1 = bias_variable([1024])
+        monitor_statistics(b_fc1)
+
+    with tf.name_scope('pool2_flat'):
+        h_pool2_flat = tf.reshape(h_pool2, [-1, 7*7*64])
+        monitor_statistics(h_pool2_flat)
+
+    with tf.name_scope('fc1'):
+        #h_fc1 = tf.nn.relu(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
+        h_fc1 = tf.nn.sigmoid(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
+        monitor_statistics(h_fc1)
 
     # dropout
     keep_prob = tf.placeholder(tf.float32)
-    h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob)
+    with tf.name_scope('input_softmax'):
+        h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob)
+        monitor_statistics(h_fc1_drop)
 
     # softmax
-    W_fc2 = weight_variable([1024, 10])
-    b_fc2 = bias_variable([10])
-    y_conv = tf.nn.softmax(tf.matmul(h_fc1_drop, W_fc2) + b_fc2, name='y')
+    with tf.name_scope('W_softmax'):
+        W_fc2 = weight_variable([1024, 10])
+        monitor_statistics(W_fc2)
+
+    with tf.name_scope('b_softmax'):
+        b_fc2 = bias_variable([10])
+        monitor_statistics(b_fc2)
+
+    with tf.name_scope('softmax'):
+        y_conv = tf.nn.softmax(tf.matmul(h_fc1_drop, W_fc2) + b_fc2, name='y')
+        monitor_statistics(y_conv)
 
     # FILL IN THE FOLLOWING CODE TO SET UP THE TRAINING
 
@@ -133,11 +198,11 @@ def main():
     for i in range(max_step):
         batch = mnist.train.next_batch(50) # make the data batch, which is used in the training iteration.
                                             # the batch size is 50
-        if i%100 == 0:
+        if i % 100 == 0:
             # output the training accuracy every 100 iterations
             train_accuracy = accuracy.eval(feed_dict={
                 x:batch[0], y_:batch[1], keep_prob: 1.0})
-            print("step %d, training accuracy %g"%(i, train_accuracy))
+            # print("step %d, training accuracy %g"%(i, train_accuracy))
 
             # Update the events file which is used to monitor the training (in this case,
             # only the training loss is monitored)
@@ -147,14 +212,18 @@ def main():
 
         # save the checkpoints every 1100 iterations
         if i % 1100 == 0 or i == max_step:
+            print("step %d, test accuracy %g, validation accuracy %g" % (i, accuracy.eval(feed_dict={
+                x: mnist.test.images, y_: mnist.test.labels, keep_prob: 1.0}), accuracy.eval(feed_dict={
+                x: mnist.validation.images, y_: mnist.validation.labels, keep_prob: 1.0})))
             checkpoint_file = os.path.join(result_dir, 'checkpoint')
             saver.save(sess, checkpoint_file, global_step=i)
 
         train_step.run(feed_dict={x: batch[0], y_: batch[1], keep_prob: 0.5}) # run one train_step
 
-    # print test error
-    print("test accuracy %g"%accuracy.eval(feed_dict={
-        x: mnist.test.images, y_: mnist.test.labels, keep_prob: 1.0}))
+    # print test and validation error
+    print("step %d, test accuracy %g, validation accuracy %g" % (max_step - 1, accuracy.eval(feed_dict={
+        x: mnist.test.images, y_: mnist.test.labels, keep_prob: 1.0}), accuracy.eval(feed_dict={
+        x: mnist.validation.images, y_: mnist.validation.labels, keep_prob: 1.0})))
 
     stop_time = time.time()
     print('The training takes %f second to finish'%(stop_time - start_time))
