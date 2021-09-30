@@ -80,7 +80,7 @@ def max_pool_2x2(x):
 
 def main():
     # Specify training parameters
-    result_dir = './results-sigmoid/' # directory where the results from the training are saved
+    result_dir = './results-bests/' # directory where the results from the training are saved
     max_step = 5500 # the maximum iterations. After max_step iterations, the training will stop no matter what
 
     start_time = time.time() # start timing
@@ -98,7 +98,8 @@ def main():
 
     # first convolutional layer
     with tf.name_scope('W1'):
-        W_conv1 = weight_variable([5, 5, 1, 32])
+        #W_conv1 = weight_variable([5, 5, 1, 32])
+        W_conv1 = tf.get_variable("W1", shape=[5, 5, 1, 32], initializer=tf.contrib.layers.xavier_initializer())
         monitor_statistics(W_conv1)
 
     with tf.name_scope('b1'):
@@ -107,7 +108,10 @@ def main():
 
     with tf.name_scope("conv1"):
         #h_conv1 = tf.nn.relu(conv2d(x_image, W_conv1) + b_conv1)
-        h_conv1 = tf.nn.sigmoid(conv2d(x_image, W_conv1) + b_conv1)
+        #h_conv1 = tf.nn.sigmoid(conv2d(x_image, W_conv1) + b_conv1)
+        #h_conv1 = tf.nn.tanh(conv2d(x_image, W_conv1) + b_conv1)
+        h_conv1 = tf.nn.leaky_relu(conv2d(x_image, W_conv1) + b_conv1)
+        #h_conv1 = tf.contrib.layers.maxout(conv2d(x_image, W_conv1) + b_conv1, 32)
         monitor_statistics(h_conv1)
 
     with tf.name_scope("pool1"):
@@ -116,7 +120,8 @@ def main():
 
     # second convolutional layer
     with tf.name_scope('W2'):
-        W_conv2 = weight_variable([5, 5, 32, 64])
+        #W_conv2 = weight_variable([5, 5, 32, 64])
+        W_conv2 = tf.get_variable("W2", shape=[5, 5, 32, 64], initializer=tf.contrib.layers.xavier_initializer())
         monitor_statistics(W_conv2)
 
     with tf.name_scope('b2'):
@@ -125,7 +130,10 @@ def main():
 
     with tf.name_scope('conv2'):
         #h_conv2 = tf.nn.relu(conv2d(h_pool1, W_conv2) + b_conv2)
-        h_conv2 = tf.nn.sigmoid(conv2d(h_pool1, W_conv2) + b_conv2)
+        #h_conv2 = tf.nn.sigmoid(conv2d(h_pool1, W_conv2) + b_conv2)
+        #h_conv2 = tf.nn.tanh(conv2d(h_pool1, W_conv2) + b_conv2)
+        h_conv2 = tf.nn.leaky_relu(conv2d(h_pool1, W_conv2) + b_conv2)
+        #h_conv2 = tf.contrib.layers.maxout(conv2d(h_pool1, W_conv2) + b_conv2, 64)
         monitor_statistics(h_conv2)
 
     with tf.name_scope('pool2'):
@@ -134,7 +142,8 @@ def main():
 
     # densely connected layer
     with tf.name_scope('W_fc1'):
-        W_fc1 = weight_variable([7 * 7 * 64, 1024])
+        #W_fc1 = weight_variable([7 * 7 * 64, 1024])
+        W_fc1 = tf.get_variable("W_fc1", shape=[7 * 7 * 64, 1024], initializer=tf.contrib.layers.xavier_initializer())
         monitor_statistics(W_fc1)
 
     with tf.name_scope('b_fc1'):
@@ -147,7 +156,10 @@ def main():
 
     with tf.name_scope('fc1'):
         #h_fc1 = tf.nn.relu(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
-        h_fc1 = tf.nn.sigmoid(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
+        #h_fc1 = tf.nn.sigmoid(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
+        #h_fc1 = tf.nn.tanh(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
+        h_fc1 = tf.nn.leaky_relu(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
+        #h_fc1 = tf.contrib.layers.maxout(tf.matmul(h_pool2_flat, W_fc1) + b_fc1, 1024)
         monitor_statistics(h_fc1)
 
     # dropout
@@ -158,7 +170,8 @@ def main():
 
     # softmax
     with tf.name_scope('W_softmax'):
-        W_fc2 = weight_variable([1024, 10])
+        #W_fc2 = weight_variable([1024, 10])
+        W_fc2 = tf.get_variable("W_softmax", shape=[1024, 10], initializer=tf.contrib.layers.xavier_initializer())
         monitor_statistics(W_fc2)
 
     with tf.name_scope('b_softmax'):
@@ -173,7 +186,11 @@ def main():
 
     # setup training
     cross_entropy = tf.reduce_mean(-tf.reduce_sum(y_ * tf.log(y_conv), reduction_indices=[1]))
-    train_step = tf.train.AdamOptimizer(1e-4).minimize(cross_entropy)
+    #train_step = tf.train.AdamOptimizer(1e-4).minimize(cross_entropy)
+    #train_step = tf.train.GradientDescentOptimizer(1e-4).minimize(cross_entropy)
+    #train_step = tf.train.MomentumOptimizer(1e-4, 0.9).minimize(cross_entropy)
+    #train_step = tf.train.AdagradOptimizer(1e-4).minimize(cross_entropy)
+    train_step = tf.train.RMSPropOptimizer(1e-4).minimize(cross_entropy)
     correct_prediction = tf.equal(tf.argmax(y_conv, 1), tf.argmax(y_, 1))
     accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32), name='accuracy')
 

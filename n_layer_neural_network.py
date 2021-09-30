@@ -256,7 +256,7 @@ class Layer(object):
 
 class DeepNeuralNetwork(NeuralNetwork):
     def __init__(self, nn_input_dim, nn_num_layers, nn_hidden_dim, nn_output_dim, actFun_type='tanh', reg_lambda=0.01,
-                 seed=0):
+                 seed=10):
         """
         :param nn_input_dim: input dimension
         :param nn_num_layers: the number of layers
@@ -396,7 +396,7 @@ def main():
     # plt.scatter(X[:, 0], X[:, 1], s=40, c=y, cmap=plt.cm.Spectral)
     # plt.show()
 
-    model = DeepNeuralNetwork(nn_input_dim=2, nn_num_layers=9, nn_hidden_dim=5, nn_output_dim=2, actFun_type='relu')
+    model = DeepNeuralNetwork(nn_input_dim=2, nn_num_layers=5, nn_hidden_dim=5, nn_output_dim=2, actFun_type='sigmoid', seed=0)
     model.fit_model(X, y)
     model.visualize_decision_boundary(X, y)
 
